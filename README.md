@@ -57,17 +57,17 @@
 
 #### Примеры использования для случая обработки книг из папки `D:\LibRusEc` с сохранением в папку `D:\LibEusEC-compressed`:
 
-	Приемлемое соотношение размер-качество (уменьшение библиотеки примерно на 65%):
-		`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=500 --jpeg=50 --overwrite --convert --fix --zip`
++ Приемлемое соотношение размер-качество (уменьшение библиотеки примерно на 65%):<br>
+`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=500 --jpeg=50 --overwrite --convert --fix --zip`
 
-	То-же самое с сокращёнными параметрами:
-		`php fb2.optimize.php -s"D:\LibRusEc" -d"D:\LibEusEC-compressed" -w500 -j50 -ocfz`
++ То-же самое с сокращёнными параметрами:<br>
+`php fb2.optimize.php -s"D:\LibRusEc" -d"D:\LibEusEC-compressed" -w500 -j50 -ocfz`
 
-	Экстремальное сжатие с плохим качеством картинок и с риском потери некоторых юникод-символов:
-		`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=300 --jpeg=30 --overwrite --convert --unsafe --fix --zip`
++ Экстремальное сжатие с плохим качеством картинок и с риском потери некоторых юникод-символов:<br>
+`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=300 --jpeg=30 --overwrite --convert --unsafe --fix --zip`
 
-  Простая оптимизация без замены кодировки, без упаковки в zip, без преобразования изображений (но дубликаты и неиспользуемые картинки все равно будут очищены)
-    `php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed"`
++ Простая оптимизация без замены кодировки, без упаковки в zip, без преобразования изображений (но дубликаты и неиспользуемые картинки все равно будут очищены):<br>
+`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed"`
 
 
 
