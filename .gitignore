@@ -1,0 +1,17 @@
+*.bak
+*.backup
+thumbs.db
+.DS_Store
+__MACOSX
+.git
+.svn
+# editors files & directories
+.idea
+nbproject
+nppBackup
+/.settings
+.buildpath
+.project
+*.nppsess
+*.sublime-project
+*.sublime-workspace
