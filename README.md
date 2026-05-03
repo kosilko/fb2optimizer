@@ -20,7 +20,7 @@
 
 ### Как пользоваться:
   1. Необходимо установить на компьютер интерпретатор PHP ( https://php.net )
-  2. Запустить из командной строки: `php fb2.optimize.php --параметр1 --параметр2 ...`
+  2. Запустить из командной строки: `php fb2optimizer.php --параметр1 --параметр2 ...`
 
 ### Параметры командной строки:
   **`--src, -s`**				- **обязательный** параметр. Папка с исходными книгами (файлы .fb2 или .zip архивы содержащие файлы .fb2).
@@ -58,16 +58,16 @@
 #### Примеры использования для случая обработки книг из папки `D:\LibRusEc` с сохранением в папку `D:\LibEusEC-compressed`:
 
 + Приемлемое соотношение размер-качество (уменьшение библиотеки примерно на 65%):<br>
-`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=500 --jpeg=50 --overwrite --convert --fix --zip`
+`php fb2optimizer.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=500 --jpeg=50 --overwrite --convert --fix --zip`
 
 + То-же самое с сокращёнными параметрами:<br>
-`php fb2.optimize.php -s"D:\LibRusEc" -d"D:\LibEusEC-compressed" -w500 -j50 -ocfz`
+`php fb2optimizer.php -s"D:\LibRusEc" -d"D:\LibEusEC-compressed" -w500 -j50 -ocfz`
 
 + Экстремальное сжатие с плохим качеством картинок и с риском потери некоторых юникод-символов:<br>
-`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=300 --jpeg=30 --overwrite --convert --unsafe --fix --zip`
+`php fb2optimizer.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed" --width=300 --jpeg=30 --overwrite --convert --unsafe --fix --zip`
 
 + Простая оптимизация без замены кодировки, без упаковки в zip, без преобразования изображений (но дубликаты и неиспользуемые картинки все равно будут очищены):<br>
-`php fb2.optimize.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed"`
+`php fb2optimizer.php --src="D:\LibRusEc" --dest="D:\LibEusEC-compressed"`
 
 
 
