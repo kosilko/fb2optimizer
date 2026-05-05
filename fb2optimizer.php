@@ -3,14 +3,28 @@
 
 function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe_convert = FALSE, $jpg_quality = 75, $downscale = 1000) {
   $result = FALSE;
+  $report = array();
   $flags = !$xml_compact ? LIBXML_BIGLINES : LIBXML_BIGLINES | LIBXML_NOBLANKS;
-  libxml_use_internal_errors(true);
-  if (!($dom = new DOMDocument())->loadXML($data, $flags | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD)) {
-    echo "\e[31;47mОШИБКА: содержимое не соответствует формату XML.\e[0m\n";
-    libxml_clear_errors();
+  
+
+  libxml_use_internal_errors(TRUE);
+  libxml_clear_errors();
+  $dom = new DOMDocument();
+ // $dom->recover = TRUE;
+  $dom->substituteEntities = TRUE;
+  $dom->strictErrorChecking = FALSE;
+  $xml_ok = $dom->loadXML($data, $flags | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+  $xml_errors = libxml_get_errors();
+  libxml_clear_errors();
+  if (!$xml_ok) {
+    foreach ($xml_errors as $idx => $e) {
+      $report["\e[31;47mОШИБКИ XML\e[0m"][] = $idx > 10 ? "..." : trim($e->message) . ' (Ln: ' . $e->line . ' Col: ' . $e->column . ')';
+      if ($idx > 10) {
+        break;
+      }
+    }    
   }
   else {
-    $report = array();
     $xpath = new DOMXPath($dom);
     $xpath->registerNamespace('fb', 'http://www.gribuser.ru/xml/fictionbook/2.0');
 
@@ -20,7 +34,7 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
     $duplicates = [];  // [duplicate_id => original_id]
     foreach ($binaryNodes as $n) {
       if (($id = $n->getAttribute('id')) . '' !== '') {
-        $n->nodeValue = preg_replace('/[\r\n]/', '', trim($n->nodeValue));
+        $n->nodeValue = preg_replace('/[\r\n ]/', '', trim($n->nodeValue));
         $hash = sha1($n->nodeValue);
         if (!isset($hashes[$hash])) {
           $hashes[$hash] = $id;
@@ -132,7 +146,7 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
                   $report['поврежденные картинки'][] = "$mime $id, проблемы с форматом";
                 }
                 else {
-                 $report['неподдерживаемый формат изображения'][] = "$mime $id";
+                  $report['неподдерживаемый формат изображения'][] = "$mime $id";
                 }
               }
               else {
@@ -147,22 +161,27 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
                 imagecopy($newImage, $imgOrigin, 0, 0, 0, 0, $width, $height);
                 imagedestroy($imgOrigin);
                 if ($downscale && $width > $downscale) {
-                  if (!($downscaledImage = imagescale($newImage, $downscale, -1, ($height > 1) ? IMG_BICUBIC : IMG_NEAREST_NEIGHBOUR))) {
-                    $report['не удалось уменьшить'][] = "$mime $id w=$width, h=$height";
+                  if ($downscaledImage = imagescale($newImage, $downscale, -1, ($height > 1) ? IMG_BICUBIC : IMG_NEAREST_NEIGHBOUR)) {
+                    imagedestroy($newImage);
+                    $newImage = $downscaledImage;
                   }
                   else {
-                    $newImage = $downscaledImage;
+                    $report["не удалось уменьшить до $downscale px"][] = "$mime $id w=$width, h=$height";
                   }
                 }
                 ob_start();
-                if (imagejpeg($newImage, NULL, $jpg_quality ?: 75)) { // or imagepng, imagewebp, etc.
+                if (imagejpeg($newImage, NULL, $jpg_quality ?: 75)) {
                   $new_binary = ob_get_contents();
-                  if ((strlen($s) / strlen($new_binary)) > 1.05) { // >=5%
+                  $l = strlen($new_binary);
+                  if ($l > 10 && ((strlen($s) / $l) > 1.05)) { // >=5%
                     $n->setAttribute('content-type', 'image/jpeg');
                     $n->setAttribute('jpg-quality', $jpg_quality ?: 75);
                     $binaries_backup[$id] = base64_encode($new_binary);
                     $report['сжатые картинки'][] = "$mime $id w=$width" . 'px' . (!$downscale || $width <= $downscale ? '' : "->$downscale" . 'px');
-                  }
+                  }                 
+                }
+                else {
+                  $report['не удалось преобразовать в JPEG'][] = "$mime $id w=$width, h=$height";
                 }
                 ob_end_clean();
                 imagedestroy($newImage);
@@ -177,16 +196,16 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
     }
 
     $eff = rtrim(round(100 - ((strlen($result) / strlen($data)) * 100), 3), '0.');
-    $report['эффективность'] = "$eff%";
-    foreach ($report as $title => $item) {
-      if (is_scalar($item)) {
-        echo "  $title: $item\n";
-      }
-      else {
-        echo "  $title:\n    " .  implode("\n    ", $item) . "\n";
-      }
-    }      
+    $report['эффективность'] = "$eff%";     
   }
+  foreach ($report as $title => $item) {
+    if (is_scalar($item)) {
+      echo "  $title: $item\n";
+    }
+    else {
+      echo "  $title:\n    " .  implode("\n    ", $item) . "\n";
+    }
+  } 
   return $result;
 }
 
@@ -231,12 +250,32 @@ function cli_arg($n) {
 }
 
 set_exception_handler(function($e) {
-    echo "PHP EXCEPTION: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n";
+    echo "EXCEPTION: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n";
     return TRUE;
 });
 
 set_error_handler(function($code, $msg, $file = NULL, $line = NULL, $ctxt = NULL) {
-  echo "PHP ERROR: $code - $msg in $file:$line.\n";
+  static $err_classes = array(
+    E_ERROR             => 'ERROR',
+    E_WARNING           => 'WARNING',
+    E_PARSE             => 'PARSE',
+    E_NOTICE            => 'NOTICE',
+    E_CORE_ERROR        => 'CORE ERROR',
+    E_CORE_WARNING      => 'CORE WARNING',
+    E_COMPILE_ERROR     => 'COMPILE ERROR',
+    E_COMPILE_WARNING   => 'COMPILE WARNING',
+    E_USER_ERROR        => 'USER ERROR',
+    E_USER_WARNING      => 'USER WARNING',
+    E_USER_NOTICE       => 'USER NOTICE',
+    E_STRICT            => 'STRICT',
+    E_RECOVERABLE_ERROR => 'RECOVERABLE ERROR',
+    E_DEPRECATED        => 'DEPRECATED',
+    E_USER_DEPRECATED   => 'USER DEPRECATED',
+    E_ALL               => 'ALL',
+  );
+  if (error_reporting() & $code) {
+    echo "\e[31;47m" . ($err_classes[$code] ?? 'UNKNWN_ERROR') . "\e[0m  - $msg in $file:$line.\n";
+  }
   return TRUE;
 });
 
