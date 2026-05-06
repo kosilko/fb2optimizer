@@ -362,7 +362,7 @@ else {
         return FALSE;
       }
       else {
-        $zip->addFromString(basename($filename), $data, ZipArchive::FL_ENC_UTF_8);
+        $zip->addFromString(basename($filename), $data, $overwrite ? ZipArchive::FL_ENC_UTF_8 | ZipArchive::FL_OVERWRITE : ZipArchive::FL_ENC_UTF_8);
         $zip->close();
         return TRUE;
       }
