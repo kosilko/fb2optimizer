@@ -2,10 +2,12 @@
 
 
 function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe_convert = FALSE, $jpg_quality = 75, $downscale = 1000) {
+  if (!$data) {
+    return FALSE;
+  }
   $result = FALSE;
   $report = array();
   $flags = !$xml_compact ? LIBXML_BIGLINES : LIBXML_BIGLINES | LIBXML_NOBLANKS;
-  
 
   libxml_use_internal_errors(TRUE);
   libxml_clear_errors();
@@ -18,11 +20,11 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
   libxml_clear_errors();
   if (!$xml_ok) {
     foreach ($xml_errors as $idx => $e) {
-      $report["\e[31;47mОШИБКИ XML\e[0m"][] = $idx > 10 ? "..." : trim($e->message) . ' (Ln: ' . $e->line . ' Col: ' . $e->column . ')';
-      if ($idx > 10) {
+      $report["\e[31;47mОШИБКИ XML \e[0m"][] = $idx >= 10 ? "... (и еще " . (count($xml_errors) - $idx) . ")" : '! ' . trim($e->message) . ' (Ln: ' . $e->line . ' Col: ' . $e->column . ')';
+      if ($idx >= 10) {
         break;
       }
-    }    
+    }
   }
   else {
     $xpath = new DOMXPath($dom);
@@ -194,9 +196,6 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
     //  $dom->save($new_filename);
       $result = $dom->saveXML();
     }
-
-    $eff = rtrim(round(100 - ((strlen($result) / strlen($data)) * 100), 3), '0.');
-    $report['эффективность'] = "$eff%";     
   }
   foreach ($report as $title => $item) {
     if (is_scalar($item)) {
@@ -205,7 +204,15 @@ function compress($data, $xml_compact = FALSE, $convert_to_1251 = FALSE, $unsafe
     else {
       echo "  $title:\n    " .  implode("\n    ", $item) . "\n";
     }
-  } 
+  }
+  if ($result && ($eff = (100 * (1 - (strlen($result) / strlen($data))))) > 0) {
+    $eff = round($eff, 2);
+    echo "XML уменьшен на $eff%\n";
+  }
+  else {
+    $result = $data;
+    echo "XML не стал меньше\n";
+  }
   return $result;
 }
 
@@ -226,7 +233,7 @@ function cli_arg($n) {
     'src:',
     'dest:',
     'jpeg:', 
-    'width:', 
+    'width:',
     'overwrite',
     'convert', 
     'unsafe',
@@ -249,12 +256,23 @@ function cli_arg($n) {
   
 }
 
-set_exception_handler(function($e) {
-    echo "EXCEPTION: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n";
-    return TRUE;
+
+
+$input_dir = rtrim(cli_arg('src') . '', '/\\');
+$output_dir = rtrim(cli_arg('dest') . '', '/\\');
+$overwrite = cli_arg('overwrite');
+$pack_to_zip = cli_arg('zip');
+$jpg_quality = cli_arg('jpeg');
+
+
+
+set_exception_handler(function(Throwable $e) {
+  echo "\e[31;47mEXCEPTION: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\e[0m\n";
+  return TRUE;
 });
 
-set_error_handler(function($code, $msg, $file = NULL, $line = NULL, $ctxt = NULL) {
+
+set_error_handler(function($errno, $errstr, $errfile = NULL, $errline = NULL, $errcontext = NULL) {
   static $err_classes = array(
     E_ERROR             => 'ERROR',
     E_WARNING           => 'WARNING',
@@ -273,17 +291,14 @@ set_error_handler(function($code, $msg, $file = NULL, $line = NULL, $ctxt = NULL
     E_USER_DEPRECATED   => 'USER DEPRECATED',
     E_ALL               => 'ALL',
   );
-  if (error_reporting() & $code) {
-    echo "\e[31;47m" . ($err_classes[$code] ?? 'UNKNWN_ERROR') . "\e[0m  - $msg in $file:$line.\n";
+  if (error_reporting() & $errno) {   
+    $errtype = $err_classes[$errno] ?? 'UNKNWN ERROR';
+    echo "\e[31;47mPHP $errtype\e[0m - $errstr in $errfile:$errline.\n";
   }
   return TRUE;
 });
 
-$input_dir = rtrim(cli_arg('src') . '', '/\\');
-$output_dir = rtrim(cli_arg('dest') . '', '/\\');
-$overwrite = cli_arg('overwrite');
-$pack_to_zip = cli_arg('zip');
-$jpg_quality = cli_arg('jpeg');
+
 if ($jpg_quality < 0 || $jpg_quality > 100) {
   echo "ERROR: качество сжатия JPEG должно быть от нуля до 100.\n";
 }
@@ -378,7 +393,7 @@ else {
               if (preg_match('/\.fb2/iu', $correctName)) {
                 $new_filename = $output_dir . DIRECTORY_SEPARATOR . preg_replace('/^' . preg_quote($input_dir, '/') . '[\\\\\/]?/u', '', dirname($filename)) . DIRECTORY_SEPARATOR . $correctName;
                 if (!$overwrite && file_exists(!$pack_to_zip ? $new_filename : preg_replace('/\.fb2$/ui', '.zip', $new_filename))) {
-                  echo "Файл \"$new_filename\" уже существует, пропущено.\n";
+                  echo "Файл уже существует \"$new_filename\"\n";
                 }
                 elseif (!($data = $zip->getFromIndex($i))) {
                   echo $data === FALSE ? "Не получилось извлечь данные из \"$filename:$correctName\".\n" : "Пустой файл \"$filename:$correctName\".\n";
@@ -415,7 +430,7 @@ else {
         echo "Обработка \"$filename\":\n";
         $new_filename = $output_dir . DIRECTORY_SEPARATOR . preg_replace('/^' . preg_quote($input_dir, '/') . '[\\\\\/]/u', '', $filename);
         if (is_dir($new_filename) || (!$overwrite && file_exists($new_filename))) {
-          echo "Файл \"$new_filename\" уже существует, пропущено.\n";
+          echo "Файл уже существует \"$new_filename\"\n";
         }
         elseif (!($data = file_get_contents($filename))) {
           if ($data === FALSE) {          
